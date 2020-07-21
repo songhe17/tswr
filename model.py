@@ -12,7 +12,7 @@ print(tf.__version__)
 
 class TSWR(object):
     
-    def __init__(self,n,k,opimizer):
+    def __init__(self,n,k,optimizer):
         
         self.n = n
         self.k = k
