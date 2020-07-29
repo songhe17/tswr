@@ -94,7 +94,7 @@ if __name__ == '__main__':
     batch = np.shape(x_other)[0]
     n = np.shape(x_other)[2] + 1
     k = np.shape(x_other)[1]
-    twsr = TSWR(batch,n,k,tf.train.AdamOptimizer(0.01))
+    twsr = TSWR(batch,n,k,tf.train.AdamOptimizer(0.001))
     feed_dict = {twsr.x:x, twsr.x_other:x_other, twsr.case:case, twsr.case_other:case_other,twsr.wd:wd, twsr.gt:gt}
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -137,6 +137,7 @@ if __name__ == '__main__':
     prediction = np.reshape(prediction, (-1))
     plt.plot(gt)
     plt.plot(prediction)
+    plt.plot(x)
     plt.figure(1)
     theta = np.reshape(theta,(-1))
     plt.plot(theta)

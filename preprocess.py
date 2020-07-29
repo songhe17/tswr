@@ -33,6 +33,26 @@ for i in data.iloc:
             flow_dict[key] = {}
         flow_dict[key][county] = i[key]
         
+county_info_path = 'data/county_basic_info/selected_data_norm.csv'
+county_info_data = pd.read_csv(county_info_path)
+county_dict = {}
+reg_keys = ['total_population', 'population_density_per_sqmi',
+            'percent_smokers', 'percent_adults_with_obesity',
+            'percent_excessive_drinking', 'percent_uninsured',
+            'percent_unemployed_CHR',
+            'violent_crime_rate','life_expectancy',
+            'percent_65_and_over', 'per_capita_income', 'percent_below_poverty']
+
+for ele in county_info_data.iloc:
+    county = ele['county']
+    if county not in all_counties:
+        continue
+    county_dict[county] = [ele[factor] for factor in reg_keys]
+sum_population = sum([county_dict[county][0] for county in county_dict])
+# for county in county_dict:
+#     county_dict[county].append(county_dict[county][0] / sum_population)
+
+    
 dump = False
 if dump:
     case_path = 'data/covid_info/us-counties.csv'
@@ -61,14 +81,17 @@ if dump:
 #print(case_dict)
 with open('data/preprocessed/cases.pkl','rb') as f:
     case_dict = pickle.load(f)
-    
+county_case = {c:[] for c in all_counties}
+for key, value in case_dict.items():
+    for county, cd in value.items():
+        county_case[county].append(cd[0])
+for key, value in county_case.items():
+    county_case[key] = [np.mean(value), np.max(value)]
 for date, value in case_dict.items():
+    for county, cd in value.items():
+        mean, maximum = county_case[county]
+        case_dict[date][county] = (np.array(cd) - mean) / maximum
 
-    value_sum = sum([value[i][0] for i in value])
-
-    value = {i:value[i]/value_sum for i in value}
-
-    case_dict[date] = value
 
 root = 'data/google trend/California/'
 search_dict = {}
@@ -76,12 +99,14 @@ start = 26
 for file in os.listdir(root):
     path = os.path.join(root, file)
     county = file.split('.')[0]
+    
     if county not in all_counties:
-        print(county)
         continue
+    scale = county_dict[county][-1]
     data = pd.read_csv(path)
     searches = []
     dates = []
+
     today = datetime.date(2020,1,19)
     for index,i in enumerate(data.iloc):
         if index < start: #2020-01-19
@@ -101,11 +126,17 @@ for file in os.listdir(root):
     for i in range(len(searches)-1):
         
         add = [(searches[i]+(k+1) * (searches[i+1]-searches[i])/7) for k in range(6)]
+
         new_search.append(searches[i])
         new_search+=add
     new_search.append(searches[-1])
-    searches = [(i-np.min(new_search)) / np.mean(new_search) for i in new_search]
+    new_search = np.array(new_search)
+    new_search = new_search / 100
     
+
+
+    new_search = [(i-np.min(new_search)) / np.mean(new_search) for i in new_search]
+
 
     for i in range(len(new_search)):
         date = str(today)
@@ -114,66 +145,158 @@ for file in os.listdir(root):
         dates.append(date)
         today = today + datetime.timedelta(days=1)
         
-    for date, search in zip(dates, searches):
-
+    for date, search in zip(dates, new_search):
         if date not in search_dict:
             search_dict[date] = {c:0 for c in all_counties}
         search_dict[date][county] = search
-        
-selected_county = 'Los Angeles'
-save = {'X':[], 'x':[], 'C':[], 'c':[], 'weekday':[], 'flow':[]}
 '''
-        self.X = tf.placeholder(tf.float32, [batch,k-1], 'X')
-        self.C = tf.placeholder(tf.float32, [batch,k-1], 'C')
-        self.x = tf.placeholder(tf.float32, [batch,1], 'x')
-        self.c = tf.placeholder(tf.float32, [batch,1], 'c')
-        self.gt = tf.placeholder(tf.float32, [batch,1], 'gt')
-        self.wd = tf.placeholder(tf.float32, [batch,7], 'wd')
+Normalize the following:
+flow_dict
+case_dict
+search_dict
 '''
-metro = {'Bakersfield': ['Kern'], 'Chico-Redding':['Modoc', 'Trinity', 'Shasta', 'Tehama', 
-         'Glenn', 'Butte'], 'Eureka': ['Humboldt'],
-    'Fresno-Visalia': ['Kings', 'Tulare', 'Fresno', 'Madera', 'Mariposa', 'Merced'], 
-    'Los Angeles': ['Ventura', 'Los Angeles', 'San Bernardino', 'Orange', 'Inyo'], 
-    'Medford-Klamath Fall': ['Del Norte', 'Siskiyou'], 
-    'Monterey-Salinas': ['Monterey', 'Santa Cruz', 'San Benito'], 
-    'Palm Springs': ['Riverside'], 'Reno': ['Lassen', 'Mono', 'Alpine'], 
-    'Sacramento-Stockton-Modesto': ['Colusa', 'Yolo', 'Sacra-Mento', 'Sutter', 'Yuba', 'Plumas', 'Sierra', 'Nevada', 'Placer', 'Amador','Calaveras', 'San Joaquin', 'Stanislaus', ], 
-    'San Diego': ['San Diego'], 'San Francisco-Oakland-San Jose': ['Mendocina', 'Lake', 'Sondoma', 'Marin', 'San Francisco', 'San Mateo', 'Santa Clara', 'Alameda', 'Contra Costa', 'Soland'], 
-    'SantaBArbara-Santa Maria- San Luis Obispo': ['San Luis Obispo', 'Santa Barbara'], 'Yuma AZ-EI Centro': ['Imperial']}
 
-for date, flow_value in flow_dict.items():
-    if date not in case_dict:
-        continue
-    if date not in search_dict:
-        continue
-    split_date = date.split('/')
-    if int(split_date[0]) > 4 or int(split_date[0]) < 3:
-        continue
-    wd = datetime.date(int(split_date[2]),int(split_date[0]),int(split_date[1])).weekday()
-    weekday = [[0.0] * 7]
-    weekday[0][wd] = 1.0
+# for date, value in case_dict.items():
+
+#     value_mean = np.mean([value[i][0] for i in value])
     
-    covid_value = case_dict[date]
-    search_value = search_dict[date]
+#     value_min = np.min([value[i][0] for i in value])
     
-    x = [covid_value[selected_county][0]]
-    X = [covid_value[key][0] for key in covid_value if key != selected_county]
-    c = [search_value[selected_county]]
-    C = [search_value[key] for key in search_value if key != selected_county]
-    flow = [flow_value[selected_county]]
+#     value_max = np.max([value[i][0] for i in value])
+
+#     value = {i:value[i]/value_max for i in value}
+
+#     case_dict[date] = value
+
+# =============================================================================
+# print(flow_dict)
+# for date, value in flow_dict.items():
+#     
+#     value = {i: value[i] * county_dict[i][-1] for i in value}
+# 
+#     value_mean = np.mean([value[i] for i in value])
+#     
+#     value_min = np.min([value[i] for i in value])
+#     
+#     value_max = np.max([value[i] for i in value])
+#     print(value_max)
+#     print([value[i] for i in value])
+#     print('\n' * 4)
+#     value = {i:value[i]/value_max for i in value}
+#     print([value[i] for i in value])
+#     flow_dict[date] = value
+#     
+# =============================================================================
     
-    for key in save:
-        save[key].append(eval(key))
-save_path = f'data/preprocessed/input_{selected_county}.pkl'
-with open(save_path,'wb') as f:
-    pickle.dump(save,f)
+
+#print(flow_dict)
+# for date, value in search_dict.items():
     
+#     #value = {i: value[i] * county_dict[i][-1] for i in value}
+
+#     value_mean = np.mean([value[i] for i in value])
     
+#     value_min = np.min([value[i] for i in value])
+    
+#     value_max = np.max([value[i] for i in value])
+    
+#     #print(value_max)
+#     #print([value[i] for i in value])
+
+#     value = {i:value[i]/value_max for i in value}
+    
+#     #print(value)
+
+#     search_dict[date] = value
+    
+#print(search_dict)
+#all_counties = []
+num_prev = 1
+wd_w = np.array([0.1226, 0.1260, 0.1242, 0.1337, 0.1822, 0.1744, 0.1366]) * 5
+for selected_county in all_counties:
+    print(selected_county)
+    save = {'X':[], 'x':[], 'C':[], 'c':[], 'weekday':[], 'flow':[]}
+    '''
+            self.X = tf.placeholder(tf.float32, [batch,k-1], 'X')
+            self.C = tf.placeholder(tf.float32, [batch,k-1], 'C')
+            self.x = tf.placeholder(tf.float32, [batch,1], 'x')
+            self.c = tf.placeholder(tf.float32, [batch,1], 'c')
+            self.gt = tf.placeholder(tf.float32, [batch,1], 'gt')
+            self.wd = tf.placeholder(tf.float32, [batch,7], 'wd')
+    '''
+
+    for index, (date, flow_value) in enumerate(flow_dict.items()):
+        
+        
+        if date not in case_dict:
+            continue
+        if date not in search_dict:
+            continue
+
+        if index < num_prev - 1:
+            continue
+
+        flow = [flow_value[selected_county]]
+        c, C, x, X = [], [], [], []
+        for i in range(num_prev):
+            
+            
+            if i != 0:
+                date = str(date).replace('-', '/')
+                date = date[6:] + '/' + date[:4] 
+            if date not in case_dict: 
+                c.append(c_temp)
+                C.append(C_temp)
+                x.append(x_temp)
+                X.append(X_temp)
+                continue
+            covid_value = case_dict[date]
+            search_value = search_dict[date]
+            split_date = date.split('/')
+
+            # if int(split_date[0]) > 5 or int(split_date[0]) < 3:
+            #     continue
+            date = datetime.date(int(split_date[2]),int(split_date[0]),int(split_date[1]))
+            wd = date.weekday()
+            wd_weight = wd_w[wd]
+            weekday = [0.0] * 7
+            weekday[wd] = 1.0
+            
+
+            
+            c_temp = covid_value[selected_county][0]
+            C_temp = np.array([covid_value[key][0] for key in covid_value if key != selected_county]) * wd_weight
+            x_temp = search_value[selected_county] 
+            X_temp = np.array([search_value[key] for key in search_value if key != selected_county]) * wd_weight
+            
+
+            c.append(c_temp)
+            C.append(C_temp)
+            x.append(x_temp)
+            X.append(X_temp)
+
+            date = date - datetime.timedelta(days=1)
+        C = np.transpose(C)
+        X = np.transpose(X)
+
+        for key in save:
+            save[key].append(eval(key))
+            #print(np.shape(eval(key)))
+
+    save_path = f'data/preprocessed/input/{selected_county}_prev.pkl'
+    with open(save_path,'wb') as f:
+        pickle.dump(save,f)
+
     
     #for i in range(1,,len(searches)-1):
         
     
     #print(searches)
+# sum_wd = sum([wd_w[i] for i in wd_w])
+# wd_list = []
+# for i in wd_w:
+#     wd_list.append(wd_w[i] / sum_wd)
+# print(wd_list)
 
     
     
