@@ -136,7 +136,9 @@ for file in os.listdir(root):
 
 
     new_search = [(i-np.min(new_search)) / np.mean(new_search) for i in new_search]
-
+    if county == 'Imperial':
+        print(new_search)
+    #print(new_search)
 
     for i in range(len(new_search)):
         date = str(today)
@@ -265,9 +267,9 @@ for selected_county in all_counties:
 
             
             c_temp = covid_value[selected_county][0]
-            C_temp = np.array([covid_value[key][0] for key in covid_value if key != selected_county]) * wd_weight
+            C_temp = np.array([covid_value[key][0] for key in covid_value if key != selected_county])
             x_temp = search_value[selected_county] 
-            X_temp = np.array([search_value[key] for key in search_value if key != selected_county]) * wd_weight
+            X_temp = np.array([search_value[key] for key in search_value if key != selected_county])
             
 
             c.append(c_temp)

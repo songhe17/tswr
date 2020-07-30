@@ -4,6 +4,7 @@ import os
 import csv
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import pandas as pd
 all_counties = ['Alameda', 'Amador', 'Butte', 'Calaveras', 'Colusa', 'Contra Costa', 'Del Norte', 'El Dorado', 'Glenn', 'Humboldt', 'Imperial', 'Inyo', 'Kern', 'Kings', 'Lake', 'Lassen', 'Los Angeles', 'Madera', 'Marin', 'Mariposa', 'Mendocino', 'Merced', 'Mono', 'Monterey', 'Napa', 'Nevada', 'Orange', 'Placer', 'Riverside', 'Sacramento', 'San Benito', 'San Bernardino', 'San Diego', 'San Francisco', 'San Joaquin', 'San Luis Obispo', 'San Mateo', 'Santa Barbara', 'Santa Clara', 'Santa Cruz', 'Shasta', 'Siskiyou', 'Solano', 'Sonoma', 'Stanislaus', 'Sutter', 'Tehama', 'Tulare', 'Tuolumne', 'Ventura', 'Yolo', 'Yuba']
 
 with open('data/preprocessed/input/Fresno_prev.pkl','rb') as f:
@@ -16,12 +17,43 @@ with open('data/preprocessed/input/Fresno_prev.pkl','rb') as f:
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.decomposition import PCA
+
+pca = PCA()
+
 X = np.array(data['X'])
 
+X = np.reshape(X, (X.shape[0],-1))
+print(X.shape)
+save_x = pd.DataFrame(X, columns=all_counties)
+save_x.to_csv('X.csv')
+# print(np.corrcoef(X))
+# X = pca.fit_transform(X)
+#print(np.corrcoef(X))
 x = data['x']
 # x = np.reshape(x, (-1))
 y = data['flow']
-print(len(x))
+print(np.shape(y))
+save_y = pd.DataFrame(y, columns=['flow'])
+save_y.to_csv('y.csv')
+# county_info_path = 'data/county_basic_info/selected_data_norm.csv'
+# sd = pd.read_csv(county_info_path)
+# sd.dropna(axis=0,inplace=True)
+# reg_keys = ['total_population', 'population_density_per_sqmi',
+#             'percent_smokers', 'percent_adults_with_obesity',
+#             'percent_excessive_drinking', 'percent_uninsured',
+#             'percent_unemployed_CHR',
+#             'violent_crime_rate','life_expectancy',
+#             'percent_65_and_over', 'per_capita_income', 'percent_below_poverty']
+# sd_like = sd[reg_keys]
+# #sd_like = (sd_like - sd_like.mean()) / sd_like.std()
+# plt.figure(figsize = (15,11))
+# print(sd_like.corr())
+# pca = PCA()
+# pca.fit(sd_like.values)
+# res = pca.transform(sd_like)
+# z = pd.DataFrame(res, columns=reg_keys)
+# print(z.corr())
 '''
 to prove there is a lag between amount of click and deduction of mobility
 Under 7:
@@ -85,34 +117,34 @@ Under 7:
 19 0.05367450082007029
 [-0.18437659]
 '''
-print(len(x[:-1]), len(x))
-losses = []
-params = []
-for i in range(20):
-	if i != 0:
-		sliced_x = deepcopy(x[:-i])
-		sliced_y = deepcopy(y[i:])
-	else:
-		sliced_x = deepcopy(x)
-		sliced_y = deepcopy(y)
+# print(len(x[:-1]), len(x))
+# losses = []
+# params = []
+# for i in range(20):
+# 	if i != 0:
+# 		sliced_x = deepcopy(x[:-i])
+# 		sliced_y = deepcopy(y[i:])
+# 	else:
+# 		sliced_x = deepcopy(x)
+# 		sliced_y = deepcopy(y)
 
-	reg = LinearRegression().fit(sliced_x, sliced_y)
-	predictions = reg.predict(sliced_x)
-	loss = np.mean((sliced_y-predictions) ** 2)
-	losses.append(loss)
-	params.append(reg.coef_[0])
-	# print(i,loss)
-	# print(reg.coef_[0])
-	# print()
-	# plt.plot(predictions,marker='.')
-	# plt.plot(sliced_y,marker='.')
-	# plt.plot(sliced_x,marker='.')
-	# plt.show()
+# 	reg = LinearRegression().fit(sliced_x, sliced_y)
+# 	predictions = reg.predict(sliced_x)
+# 	loss = np.mean((sliced_y-predictions) ** 2)
+# 	losses.append(loss)
+# 	params.append(reg.coef_[0])
+# 	# print(i,loss)
+# 	# print(reg.coef_[0])
+# 	# print()
+# 	# plt.plot(predictions,marker='.')
+# 	# plt.plot(sliced_y,marker='.')
+# 	# plt.plot(sliced_x,marker='.')
+# 	# plt.show()
 
-plt.plot(losses)
-#plt.plot(params)
-plt.savefig('figures/losses_shift.png')
-plt.show()
+# plt.plot(losses)
+# #plt.plot(params)
+# plt.savefig('figures/losses_shift.png')
+# plt.show()
 
 
 
